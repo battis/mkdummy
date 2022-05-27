@@ -1,0 +1,112 @@
+#!/bin/bash
+
+DIR=$(pwd)
+DNAMES=(stuff things homework)
+FNAMES=(file test data "my paper")
+FEXTS=(docx xlsx pptx pdf png jpg gif mp4)
+FSIZE_MIN=$(bc <<<"1048*2") #2K
+FSIZE_MAX=$(bc <<<"1024*500") #500K
+FILES_MAX=0
+DISKSPACE_MAX=0
+RECURSE_PROB=10
+RECURSE_MAX=3
+
+DIRS=0
+FILES=0
+DISKSPACE=0
+
+# https://gist.github.com/gnif/cadc611f04998706559def45318a0129
+function humanReadableSize()
+{
+  local SIZE=$1
+  local UNITS="B K M G T P"
+  for F in $UNITS; do
+    local UNIT=$F
+    test ${SIZE%.*} -lt 1024 && break;
+    SIZE=$(echo "$SIZE / 1024" | bc -l)
+  done
+
+  if [ "$UNIT" == "B" ]; then
+    printf "%1.0f%s\n" $SIZE $UNIT
+  else
+    printf "%1.02f%s\n" $SIZE $UNIT
+  fi
+}
+
+# Finder-style copy renaming if file or directory exists
+finderCopy() {
+	local BASE="$1"
+	local EXT="$2"
+	if [ -n "$EXT" ]; then
+		EXT=".$EXT"
+	fi
+	local FNAME="$BASE$EXT"
+	local i=0
+	while [[ -f "$FNAME" || -d "$FNAME" ]]; do
+		if [ $i -eq 0 ]; then
+			FNAME="$BASE copy$EXT"
+		else
+			FNAME="$BASE copy $((i+1))$EXT"
+		fi
+		let "i++"
+	done
+	echo $FNAME
+}
+
+generate() {
+	local FPATH=$1
+	local FPATH_DEPTH=${2:-1}
+	local FPATH_FILES_MAX=${3:-0}	
+	local FPATH_FILES=0
+	while [[ ($DISKSPACE_MAX -eq 0 || $DISKSPACE -lt $DISKSPACE_MAX) && \
+			($FPATH_FILES_MAX -eq 0 || $FPATH_FILES -lt $FPATH_FILES_MAX) && \
+			( $FILES_MAX -eq 0  || $FILES -lt $FILES_MAX ) ]] ; do
+		if [[ $FPATH_DEPTH -ge $RECURSE_MAX || $(jot -r 1 0 100) -gt $RECURSE_PROB ]]; then
+			local FSIZE=$(jot -r 1 $FSIZE_MIN $FSIZE_MAX)
+			local FNAME=$(finderCopy "${FNAMES[$RANDOM % ${#FNAMES[@]}]}" "${FEXTS[$RANDOM % ${#FEXTS[@]}]}")
+			dd if=/dev/urandom bs=1 count=$FSIZE of="$FPATH/$FNAME" >/dev/null 2>&1
+			echo "$FPATH/$FNAME ($(humanReadableSize $FSIZE))"
+			DISKSPACE=$(bc <<<"$DISKSPACE + $FSIZE")
+			let "FILES++"
+			let "FPATH_FILES++"
+		else
+			local SUB=$(finderCopy "$FPATH/${DNAMES[$RANDOM % ${#DNAMES[@]}]}")
+			mkdir "$SUB"
+			let "DIRS++"
+			generate "$SUB" $((FPATH_DEPTH+1)) $(jot -r 1 1 100)
+		fi
+	done
+}
+
+print_usage() {
+	echo "Usage: $(basename $0) [-f files] [-n bytes] [-x bytes] [-s bytes] [-d depth] [-r {0..99}] [path]"
+	echo "  -d: [D]epth of recursive folder nesting"
+	echo "  -f: maximum number of [F]iles"
+	echo "  -n: mi[N]imum file size (in bytes)"
+	echo "  -r: probabilty of [R]ecursive folder nesting [0..100), default 10"
+	echo "  -s: approximate amount of disk[S]pace to consume (in bytes)"
+	echo "  -x: ma[X]imum file size (in bytes) "
+}
+
+while getopts 'd:f:n:x:s:r:' flag; do
+	case "${flag}" in
+		f) FILES_MAX="${OPTARG}" ;;
+		x) FSIZE_MAX="${OPTARG}" ;;
+		n) FSIZE_MIN="${OPTARG}" ;;
+		s) DISKSPACE_MAX="${OPTARG}" ;;
+		d) RECURSE_MAX="${OPTARG}" ;;
+		r) RECURSE_PROB=$(bc <<<"${OPTARG} % 100") ;;
+		*) print_usage
+		   exit 1 ;;
+	esac
+done
+shift $(($OPTIND - 1)) # assign positional args to $1, $2, ...$n
+DIR=${1:-$(pwd)}
+
+if [[ $DISKSPACE_MAX -eq 0 && $FILES_MAX -eq 0 ]]; then
+	DISKSPACE_MAX=$(bc <<<"1024*1024")
+fi
+
+mkdir -p $DIR >/dev/null 2>&1
+generate $DIR
+echo "$FILES files ($(humanReadableSize $DISKSPACE))"
