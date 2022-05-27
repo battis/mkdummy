@@ -1,5 +1,5 @@
 ```bash
-Usage: mkdummy [-f files] [-n bytes] [-x bytes] [-s bytes] [-d depth] [-r {0..99}] [path]
+Usage: mkdummy [-f files] [-n bytes] [-x bytes] [-s bytes] [-d depth] [-r [0..99)] [path]
   -d: [D]epth of recursive folder nesting
   -f: maximum number of [F]iles
   -n: mi[N]imum file size (in bytes)
