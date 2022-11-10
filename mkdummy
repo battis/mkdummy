@@ -64,7 +64,7 @@ generate() {
 		if [[ $FPATH_DEPTH -ge $RECURSE_MAX || $(jot -r 1 0 100) -gt $RECURSE_PROB ]]; then
 			local FSIZE=$(jot -r 1 $FSIZE_MIN $FSIZE_MAX)
 			local FNAME=$(finderCopy "${FNAMES[$RANDOM % ${#FNAMES[@]}]}" "${FEXTS[$RANDOM % ${#FEXTS[@]}]}")
-            mkfile -v -n $(humanReadableSize $FSIZE) "$FPATH/$FNAME"
+            mkfile -v -n $(humanReadableSize $FSIZE) "$FPATH/$FNAME" >/dev/null 2>&1
 			echo "$FPATH/$FNAME ($(humanReadableSize $FSIZE))"
 			DISKSPACE=$(bc <<<"$DISKSPACE + $FSIZE")
 			let "FILES++"
