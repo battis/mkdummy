@@ -64,6 +64,7 @@ generate() {
 		if [[ $FPATH_DEPTH -ge $RECURSE_MAX || $(jot -r 1 0 100) -gt $RECURSE_PROB ]]; then
 			local FSIZE=$(jot -r 1 $FSIZE_MIN $FSIZE_MAX)
 			local FNAME=$(finderCopy "${FNAMES[$RANDOM % ${#FNAMES[@]}]}" "${FEXTS[$RANDOM % ${#FEXTS[@]}]}")
+            # TODO replace dd with mkfile https://krypted.com/mac-os-x/make-empty-files-of-a-certain-size-in-os-x
 			dd if=/dev/urandom bs=1 count=$FSIZE of="$FPATH/$FNAME" >/dev/null 2>&1
 			echo "$FPATH/$FNAME ($(humanReadableSize $FSIZE))"
 			DISKSPACE=$(bc <<<"$DISKSPACE + $FSIZE")
